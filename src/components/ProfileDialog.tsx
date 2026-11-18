@@ -65,7 +65,7 @@ function ProfileBody({ name }: { name: string }) {
   return (
     <>
       <div className="flex items-center gap-5 pr-10">
-        <UserAvatar id={user?.id} name={name} src={profile?.avatar_url} className="h-28 w-28 text-4xl" />
+        <UserAvatar id={user?.id} name={name} src={profile?.avatar_url} className="h-[75px] w-[75px] text-2xl" />
         <div className="min-w-0 text-left">
           <DialogTitle className="text-2xl leading-8">{displayName(name)}</DialogTitle>
           {profile?.email ?? user?.email ? <p className="text-sm text-abyss-5">{profile?.email ?? user?.email}</p> : null}
