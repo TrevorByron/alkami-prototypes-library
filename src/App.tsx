@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { ArrowDownUp, Check, ChevronDown, ExternalLink, Eye, Hammer, LayoutGrid, MessageSquare, Plus, RotateCcw, Search, Users } from "lucide-react";
 
@@ -26,6 +26,7 @@ import { type Contributor, useContributors } from "@/hooks/useContributors";
 import { usePrototypes } from "@/hooks/usePrototypes";
 import { startLibraryVisit, unreadCount } from "@/lib/activity";
 import { isDemoMode } from "@/lib/demoMode";
+import { recordEasterEgg, recordVisit } from "@/lib/tracking";
 import { detectPlatform, opensInNewTabOnly } from "@/lib/platforms";
 import { displayName } from "@/lib/names";
 import { prototypeTags, tagInfo } from "@/lib/tags";
@@ -34,6 +35,10 @@ import { SignIn } from "@/pages/SignIn";
 import { ViewerPage } from "@/pages/ViewerPage";
 
 function App() {
+  const { user } = useAuth();
+  // One visit per member per day feeds the Habits awards.
+  useEffect(() => { if (user) void recordVisit(); }, [user]);
+
   return (
     <div>
       <Routes>
@@ -189,7 +194,7 @@ function StatCard({ icon, tone, label, value, unit }: { icon: React.ReactNode; t
 // it is a small easter egg that lists everyone who has signed in.
 function ContributorsCard({ contributors }: { contributors: Contributor[] }) {
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => { if (open) void recordEasterEgg("contributors"); }}>
       <PopoverTrigger asChild>
         <button type="button" className="cursor-default rounded-lg text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2" aria-label={`${contributors.length} contributors. Show who has signed in`}>
           <StatCard icon={<Users />} tone="desert" label="Contributors" value={contributors.length} unit={contributors.length === 1 ? "person has signed in" : "people have signed in"} />

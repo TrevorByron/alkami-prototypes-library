@@ -1,4 +1,4 @@
-import { Eye, Flame, Globe, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarDays, Eye, Flame, Gamepad2, Globe, Hourglass, Moon, Search, Sunrise, Trophy, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 
 import { detectPlatform } from "@/lib/platforms";
 import type { PrototypeSummary } from "@/lib/types";
@@ -11,7 +11,7 @@ export type Tier = "bronze" | "silver" | "gold";
 export const tierOrder: Tier[] = ["bronze", "silver", "gold"];
 export const tierLabels: Record<Tier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold" };
 
-export type AwardGroup = "Getting started" | "Builder" | "Surfaces" | "Reviewer" | "Community";
+export type AwardGroup = "Getting started" | "Builder" | "Surfaces" | "Reviewer" | "Community" | "Habits" | "Secrets";
 
 /** What we know about a member. Everything an award can look at lives here. */
 export type MemberStats = {
@@ -41,9 +41,21 @@ export type MemberStats = {
   topUpvotes: number;
   consolePrototypes: number;
   selfServePrototypes: number;
+  /** Distinct days the member opened the library. */
+  visitDays: number;
+  /** Longest run of consecutive weeks (Mon-Sun) with at least one visit. */
+  weekStreak: number;
+  /** Comments posted between 10pm and 4am, in the member's local time. */
+  lateComments: number;
+  /** Whole years since they first signed in. */
+  memberYears: number;
+  earlyBird: boolean;
+  playedRunner: boolean;
+  onLeaderboard: boolean;
+  foundContributors: boolean;
 };
 
-type Metric = keyof MemberStats;
+type Metric = { [K in keyof MemberStats]: MemberStats[K] extends number ? K : never }[keyof MemberStats];
 
 type AwardBase = { id: string; name: string; group: AwardGroup; icon: LucideIcon };
 type TieredAward = AwardBase & {
@@ -79,6 +91,14 @@ export const awardDefinitions: AwardDefinition[] = [
   { id: "crowd-pleaser", name: "Crowd Pleaser", group: "Community", icon: Users, kind: "tiered", metric: "mostViews", thresholds: [10, 25, 50], describe: (n) => `Get ${n} views on one of your prototypes` },
   { id: "conversation-starter", name: "Conversation Starter", group: "Community", icon: Flame, kind: "tiered", metric: "mostDiscussed", thresholds: [5, 15, 30], describe: (n) => `Get ${n} comments from others on one prototype` },
   { id: "popular-take", name: "Popular Take", group: "Community", icon: Star, kind: "tiered", metric: "topUpvotes", thresholds: [5, 10, 20], describe: (n) => `Get ${n} upvotes on one of your comments` },
+  { id: "regular", name: "Regular", group: "Habits", icon: CalendarDays, kind: "tiered", metric: "visitDays", thresholds: [5, 20, 60], describe: (n) => `Visit the library on ${n} different days` },
+  { id: "weekly-habit", name: "Weekly Habit", group: "Habits", icon: CalendarCheck, kind: "tiered", metric: "weekStreak", thresholds: [2, 4, 12], describe: (n) => `Visit the library ${n} weeks in a row` },
+  { id: "old-timer", name: "Old Timer", group: "Habits", icon: Hourglass, kind: "tiered", metric: "memberYears", thresholds: [1, 2, 3], describe: (n) => `Be a member for ${plural(n, "year", "years")}` },
+  { id: "early-bird", name: "Early Bird", group: "Habits", icon: Sunrise, kind: "single", earned: (stats) => stats.earlyBird, describe: "Be among the first 25 members to sign in" },
+  { id: "night-owl", name: "Night Owl", group: "Habits", icon: Moon, kind: "tiered", metric: "lateComments", thresholds: [1, 5, 20], describe: (n) => `Post ${plural(n, "comment", "comments")} between 10pm and 4am` },
+  { id: "critter-friend", name: "Critter Friend", group: "Secrets", icon: Gamepad2, kind: "single", earned: (stats) => stats.playedRunner, describe: "Play the pixel runner" },
+  { id: "high-roller", name: "High Roller", group: "Secrets", icon: Trophy, kind: "single", earned: (stats) => stats.onLeaderboard, describe: "Reach the pixel runner’s top 5" },
+  { id: "detective", name: "Detective", group: "Secrets", icon: Search, kind: "single", earned: (stats) => stats.foundContributors, describe: "Find out who’s been here" },
 ];
 
 export type AwardStatus = {
@@ -124,11 +144,35 @@ export type MemberActivity = {
   replies: number;
   comments: CommentFact[];
   upvotes: UpvoteFact[];
+  /** Local dates ("2026-11-12") the member opened the library. */
+  visitDays: string[];
+  easterEggs: string[];
+  /** Their saved pixel runner best; above 0 means they played. */
+  runnerBest: number;
+  onLeaderboard: boolean;
+  earlyBird: boolean;
 };
 
 const maxOf = (values: number[]) => values.reduce((top, value) => Math.max(top, value), 0);
 
-export function computeMemberStats(userId: string | undefined, prototypes: PrototypeSummary[], activity: MemberActivity): MemberStats {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Longest run of consecutive Monday-to-Sunday weeks containing a visit. */
+function longestWeekStreak(days: string[]) {
+  // Day numbers since 1970-01-01 (a Thursday), shifted so weeks start on Monday.
+  const weeks = [...new Set(days.map((day) => Math.floor((Date.parse(`${day}T00:00:00Z`) / DAY_MS + 3) / 7)).filter((week) => !Number.isNaN(week)))].sort((a, b) => a - b);
+  let best = 0;
+  let run = 0;
+  weeks.forEach((week, index) => {
+    run = index > 0 && week === weeks[index - 1] + 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+  });
+  return best;
+}
+
+const isLateNight = (isoTime: string) => { const hour = new Date(isoTime).getHours(); return hour >= 22 || hour < 4; };
+
+export function computeMemberStats(userId: string | undefined, prototypes: PrototypeSummary[], activity: MemberActivity, joinedAt?: string, now = Date.now()): MemberStats {
   const mine = prototypes.filter((prototype) => prototype.owner_id === userId);
   const ownedIds = new Set(mine.map((prototype) => prototype.id));
   const others = prototypes.filter((prototype) => prototype.owner_id !== userId);
@@ -159,5 +203,13 @@ export function computeMemberStats(userId: string | undefined, prototypes: Proto
     topUpvotes: maxOf(myComments.map((comment) => upvotesOn(comment.id))),
     consolePrototypes: mine.filter((prototype) => prototype.surface === "console").length,
     selfServePrototypes: mine.filter((prototype) => prototype.surface === "self_serve").length,
+    visitDays: new Set(activity.visitDays).size,
+    weekStreak: longestWeekStreak(activity.visitDays),
+    lateComments: myComments.filter((comment) => isLateNight(comment.created_at)).length,
+    memberYears: joinedAt && !Number.isNaN(Date.parse(joinedAt)) ? Math.max(0, Math.floor((now - Date.parse(joinedAt)) / (365.25 * DAY_MS))) : 0,
+    earlyBird: activity.earlyBird,
+    playedRunner: activity.runnerBest > 0,
+    onLeaderboard: activity.onLeaderboard,
+    foundContributors: activity.easterEggs.includes("contributors"),
   };
 }

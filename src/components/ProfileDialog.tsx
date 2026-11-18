@@ -60,7 +60,7 @@ function ProfileBody({ name }: { name: string }) {
     [prototypes, user?.id],
   );
 
-  const statuses = useMemo(() => evaluateAwards(computeMemberStats(user?.id, prototypes, activity)), [prototypes, activity, user?.id]);
+  const statuses = useMemo(() => evaluateAwards(computeMemberStats(user?.id, prototypes, activity, user?.created_at)), [prototypes, activity, user?.id]);
 
   return (
     <>

@@ -140,6 +140,7 @@ export function getDemoMemberActivity() {
     replies: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).length,
     comments: read<CommentRecord>(commentsKey).map(({ id, prototype_id, author_id, created_at, status, resolved_by }) => ({ id, prototype_id, author_id, created_at, status, resolved_by })),
     upvotes: read<DemoUpvote>(upvotesKey),
+    ...readDemoExtras(),
   };
 }
 
@@ -148,7 +149,7 @@ export function getDemoMemberActivity() {
 // people's work, never replied and never tagged anything Committed, so some
 // awards are earned at different tiers and some are still locked. Written once
 // per browser (bump the version to reseed); never runs outside demo mode.
-const seedKey = "commentor:demo:seed:v4";
+const seedKey = "commentor:demo:seed:v5";
 
 export function seedDemoProfile() {
   if (window.localStorage.getItem(seedKey)) return;
@@ -201,10 +202,40 @@ export function seedDemoProfile() {
     ...["a", "b", "c"].map((user_id) => ({ comment_id: "seed-comment-seed-other-1-0", user_id })),
   ];
 
+  // Two of the member's comments were posted late at night.
+  const lateNight = (comment: CommentRecord, hour: number): CommentRecord => { const when = new Date(comment.created_at); when.setHours(hour, 15, 0, 0); return { ...comment, created_at: when.toISOString() }; };
+  comments[0] = lateNight(comments[0], 23);
+  comments[1] = lateNight(comments[1], 1);
+
+  // Visits: three weeks in a row plus some extra days; played the runner but
+  // not on the board; an early member; hasn't opened the Contributors card.
+  const visitDays = [0, 7, 14, 2, 3, 9, 10, 21, 30, 31, 45, 46, 47].map((daysAgo) => { const when = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000); return `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}-${String(when.getDate()).padStart(2, "0")}`; });
+  window.localStorage.setItem(extrasKey, JSON.stringify({ visitDays, easterEggs: [], runnerBest: 1420, onLeaderboard: false, earlyBird: true }));
+
   write(prototypesKey, prototypes);
   write(commentsKey, comments);
   write(repliesKey, []);
   write(upvotesKey, upvotes);
   write(viewsKey, views);
   window.localStorage.setItem(seedKey, "1");
+}
+
+// Demo-mode stand-ins for the member_visits table and profile flags.
+const extrasKey = "commentor:demo:extras";
+type DemoExtras = { visitDays: string[]; easterEggs: string[]; runnerBest: number; onLeaderboard: boolean; earlyBird: boolean };
+
+export function readDemoExtras(): DemoExtras {
+  try { return { visitDays: [], easterEggs: [], runnerBest: 0, onLeaderboard: false, earlyBird: false, ...JSON.parse(window.localStorage.getItem(extrasKey) ?? "{}") }; } catch { return { visitDays: [], easterEggs: [], runnerBest: 0, onLeaderboard: false, earlyBird: false }; }
+}
+
+function writeDemoExtras(extras: DemoExtras) { window.localStorage.setItem(extrasKey, JSON.stringify(extras)); }
+
+export function recordDemoVisit(day: string) {
+  const extras = readDemoExtras();
+  if (!extras.visitDays.includes(day)) writeDemoExtras({ ...extras, visitDays: [...extras.visitDays, day] });
+}
+
+export function recordDemoEasterEgg(egg: string) {
+  const extras = readDemoExtras();
+  if (!extras.easterEggs.includes(egg)) writeDemoExtras({ ...extras, easterEggs: [...extras.easterEggs, egg] });
 }
