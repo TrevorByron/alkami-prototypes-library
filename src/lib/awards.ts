@@ -1,4 +1,4 @@
-import { Eye, Footprints, GitFork, Handshake, Layers, MessageSquare, Reply, Rocket, Tags, type LucideIcon } from "lucide-react";
+import { Eye, Flame, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 
 import { detectPlatform } from "@/lib/platforms";
 import type { PrototypeSummary } from "@/lib/types";
@@ -11,7 +11,7 @@ export type Tier = "bronze" | "silver" | "gold";
 export const tierOrder: Tier[] = ["bronze", "silver", "gold"];
 export const tierLabels: Record<Tier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold" };
 
-export type AwardGroup = "Getting started" | "Builder";
+export type AwardGroup = "Getting started" | "Builder" | "Reviewer" | "Community";
 
 /** What we know about a member. Everything an award can look at lives here. */
 export type MemberStats = {
@@ -26,6 +26,19 @@ export type MemberStats = {
   tags: number;
   remixes: number;
   committed: number;
+  /** Prototypes by someone else where this member left the very first comment. */
+  firstComments: number;
+  /** Distinct prototypes by someone else this member has commented on. */
+  othersCommented: number;
+  upvotesGiven: number;
+  /** Comments on this member's prototypes that this member resolved. */
+  resolved: number;
+  /** Views on this member's most-viewed prototype. */
+  mostViews: number;
+  /** Comments from others on this member's most-discussed prototype. */
+  mostDiscussed: number;
+  /** Upvotes on this member's most-upvoted comment. */
+  topUpvotes: number;
 };
 
 type Metric = keyof MemberStats;
@@ -54,6 +67,13 @@ export const awardDefinitions: AwardDefinition[] = [
   { id: "remixer", name: "Remixer", group: "Builder", icon: GitFork, kind: "single", earned: (stats) => stats.remixes > 0, describe: "Start a prototype from someone else’s with “Build on this”" },
   { id: "tag-collector", name: "Tag Collector", group: "Builder", icon: Tags, kind: "tiered", metric: "tags", thresholds: [2, 4, 6], describe: (n) => `Use ${n} different category tags` },
   { id: "idea-to-handoff", name: "Idea to Handoff", group: "Builder", icon: Handshake, kind: "single", earned: (stats) => stats.committed > 0, describe: "Tag a prototype Committed" },
+  { id: "fresh-eyes", name: "Fresh Eyes", group: "Reviewer", icon: ScanEye, kind: "tiered", metric: "firstComments", thresholds: [1, 3, 10], describe: (n) => `Be the first to comment on ${plural(n, "prototype", "prototypes")}` },
+  { id: "critics-circle", name: "Critic’s Circle", group: "Reviewer", icon: MessagesSquare, kind: "tiered", metric: "othersCommented", thresholds: [2, 5, 10], describe: (n) => `Comment on ${n} different people’s prototypes` },
+  { id: "thumbs-up", name: "Thumbs Up", group: "Reviewer", icon: ThumbsUp, kind: "tiered", metric: "upvotesGiven", thresholds: [1, 10, 50], describe: (n) => `Upvote ${plural(n, "comment", "comments")}` },
+  { id: "resolved", name: "Resolved!", group: "Reviewer", icon: SquareCheck, kind: "tiered", metric: "resolved", thresholds: [1, 5, 15], describe: (n) => `Resolve ${plural(n, "comment", "comments")} on your prototypes` },
+  { id: "crowd-pleaser", name: "Crowd Pleaser", group: "Community", icon: Users, kind: "tiered", metric: "mostViews", thresholds: [10, 25, 50], describe: (n) => `Get ${n} views on one of your prototypes` },
+  { id: "conversation-starter", name: "Conversation Starter", group: "Community", icon: Flame, kind: "tiered", metric: "mostDiscussed", thresholds: [5, 15, 30], describe: (n) => `Get ${n} comments from others on one prototype` },
+  { id: "popular-take", name: "Popular Take", group: "Community", icon: Star, kind: "tiered", metric: "topUpvotes", thresholds: [5, 10, 20], describe: (n) => `Get ${n} upvotes on one of your comments` },
 ];
 
 export type AwardStatus = {
@@ -88,27 +108,49 @@ export function evaluateAwards(stats: MemberStats) {
   return awardDefinitions.map((award) => evaluateAward(award, stats));
 }
 
-/** The raw activity that stats are derived from. */
+export type CommentFact = { id: string; prototype_id: string; author_id: string; created_at: string; status: "open" | "resolved"; resolved_by: string | null };
+export type UpvoteFact = { comment_id: string; user_id: string };
+
+/** The raw activity that stats are derived from. Comments and upvotes cover every member, since some awards compare against others. */
 export type MemberActivity = {
   /** Prototypes this member has opened (any owner). */
   viewedPrototypeIds: string[];
-  comments: number;
+  /** Replies this member has posted. */
   replies: number;
+  comments: CommentFact[];
+  upvotes: UpvoteFact[];
 };
+
+const maxOf = (values: number[]) => values.reduce((top, value) => Math.max(top, value), 0);
 
 export function computeMemberStats(userId: string | undefined, prototypes: PrototypeSummary[], activity: MemberActivity): MemberStats {
   const mine = prototypes.filter((prototype) => prototype.owner_id === userId);
   const ownedIds = new Set(mine.map((prototype) => prototype.id));
+  const others = prototypes.filter((prototype) => prototype.owner_id !== userId);
   const tools = new Set(mine.map((prototype) => detectPlatform(prototype.url, prototype.embed_mode)?.id).filter(Boolean));
   const tags = new Set(mine.flatMap((prototype) => prototype.tags));
+
+  const myComments = activity.comments.filter((comment) => comment.author_id === userId);
+  const commentsOn = (prototypeId: string) => activity.comments.filter((comment) => comment.prototype_id === prototypeId);
+  const earliest = (prototypeId: string) => [...commentsOn(prototypeId)].sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+
+  const upvotesOn = (commentId: string) => activity.upvotes.filter((upvote) => upvote.comment_id === commentId).length;
+
   return {
     prototypes: mine.length,
     othersViewed: new Set(activity.viewedPrototypeIds.filter((id) => !ownedIds.has(id))).size,
-    comments: activity.comments,
+    comments: myComments.length,
     replies: activity.replies,
     tools: tools.size,
     tags: tags.size,
     remixes: mine.filter((prototype) => Boolean(prototype.source_meta?.based_on)).length,
     committed: mine.filter((prototype) => prototype.tags.includes("committed")).length,
+    firstComments: others.filter((prototype) => earliest(prototype.id)?.author_id === userId).length,
+    othersCommented: new Set(myComments.map((comment) => comment.prototype_id).filter((id) => !ownedIds.has(id))).size,
+    upvotesGiven: activity.upvotes.filter((upvote) => upvote.user_id === userId).length,
+    resolved: activity.comments.filter((comment) => ownedIds.has(comment.prototype_id) && comment.status === "resolved" && comment.resolved_by === userId).length,
+    mostViews: maxOf(mine.map((prototype) => prototype.view_count ?? 0)),
+    mostDiscussed: maxOf(mine.map((prototype) => commentsOn(prototype.id).filter((comment) => comment.author_id !== userId).length)),
+    topUpvotes: maxOf(myComments.map((comment) => upvotesOn(comment.id))),
   };
 }

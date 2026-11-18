@@ -136,8 +136,9 @@ export function demoSlackChannel(id: string): SlackChannel | undefined { return 
 export function getDemoMemberActivity() {
   return {
     viewedPrototypeIds: read<{ prototype_id: string; viewer_id: string }>(viewsKey).filter((view) => view.viewer_id === demoProfile.id).map((view) => view.prototype_id),
-    comments: read<CommentRecord>(commentsKey).filter((comment) => comment.author_id === demoProfile.id).length,
     replies: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).length,
+    comments: read<CommentRecord>(commentsKey).map(({ id, prototype_id, author_id, created_at, status, resolved_by }) => ({ id, prototype_id, author_id, created_at, status, resolved_by })),
+    upvotes: read<DemoUpvote>(upvotesKey),
   };
 }
 
@@ -146,7 +147,7 @@ export function getDemoMemberActivity() {
 // people's work, never replied and never tagged anything Committed, so some
 // awards are earned at different tiers and some are still locked. Written once
 // per browser (bump the version to reseed); never runs outside demo mode.
-const seedKey = "commentor:demo:seed:v1";
+const seedKey = "commentor:demo:seed:v3";
 
 export function seedDemoProfile() {
   if (window.localStorage.getItem(seedKey)) return;
@@ -173,17 +174,36 @@ export function seedDemoProfile() {
     id: `seed-comment-${prototypeId}-${index}`, prototype_id: prototypeId, author_id: demoProfile.id, body: ["Love the layout.", "Could the totals sit higher?", "This flow feels clear.", "What happens when it fails?"][index % 4],
     page_url: null, status: "open", screen_label: null, viewport: null, x_pct: null, y_pct: null, selector: null, scroll_y: null, snapshot_url: null, slack_ts: null, resolved_by: null, resolved_at: null, resolution_note: null, created_at: day(daysAgo), replies: [], upvoters: [],
   });
+  // Comments from other members, so the community awards have something to count.
+  const fromOthers = (prototypeId: string, index: number, daysAgo: number, resolved = false): CommentRecord => ({
+    ...commentOn(prototypeId, index, daysAgo), id: `seed-theirs-${prototypeId}-${index}`, author_id: "demo-owner", author: { id: "demo-owner", name: "Demo owner", avatar_url: null },
+    status: resolved ? "resolved" : "open", resolved_by: resolved ? demoProfile.id : null, resolved_at: resolved ? day(daysAgo - 1) : null,
+  });
   const comments = [
     commentOn("seed-other-1", 0, 28), commentOn("seed-other-1", 1, 27), commentOn("seed-other-2", 2, 16), commentOn("seed-other-2", 3, 15), commentOn("seed-other-3", 0, 7),
     commentOn("seed-mine-1", 1, 20), commentOn("seed-mine-3", 2, 100),
+    // Someone got to this one before the member did, so it is not a "first comment".
+    fromOthers("seed-other-2", 1, 17),
+    ...[0, 1, 2, 3, 4, 5].map((index) => fromOthers("seed-mine-1", index, 21 - index, index < 2)),
   ];
 
-  const views = ["seed-other-1", "seed-other-2", "seed-other-3"].map((prototype_id) => ({ prototype_id, viewer_id: demoProfile.id }));
+  // Twelve other members have opened "AI document processing".
+  const views = [
+    ...["seed-other-1", "seed-other-2", "seed-other-3"].map((prototype_id) => ({ prototype_id, viewer_id: demoProfile.id })),
+    ...Array.from({ length: 12 }, (_, index) => ({ prototype_id: "seed-mine-2", viewer_id: `seed-viewer-${index}` })),
+  ];
+
+  // The member upvoted two comments, and three people upvoted one of theirs.
+  const upvotes = [
+    { comment_id: "seed-theirs-seed-mine-1-0", user_id: demoProfile.id },
+    { comment_id: "seed-theirs-seed-mine-1-1", user_id: demoProfile.id },
+    ...["a", "b", "c"].map((user_id) => ({ comment_id: "seed-comment-seed-other-1-0", user_id })),
+  ];
 
   write(prototypesKey, prototypes);
   write(commentsKey, comments);
   write(repliesKey, []);
-  write(upvotesKey, []);
+  write(upvotesKey, upvotes);
   write(viewsKey, views);
   window.localStorage.setItem(seedKey, "1");
 }
