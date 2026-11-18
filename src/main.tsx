@@ -4,8 +4,12 @@ import { HashRouter } from "react-router-dom";
 
 import { AuthProvider } from "./auth/AuthProvider";
 import App from "./App";
+import { isDemoMode } from "./lib/demoMode";
+import { seedDemoProfile } from "./lib/demoStore";
 import { isFramed } from "./lib/selfEmbed";
 import "./index.css";
+
+if (isDemoMode) seedDemoProfile();
 
 createRoot(document.getElementById("root")!).render(
   isFramed ? (

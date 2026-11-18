@@ -11,7 +11,7 @@ type DemoUpvote = { comment_id: string; user_id: string };
 export const demoProfile: CommentAuthor & { slack_user_id: string; team_id: string; auth_provider: "email"; email: string } = {
   id: "demo-user",
   slack_user_id: "demo-user",
-  name: "Demo reviewer",
+  name: "David B.",
   avatar_url: null,
   team_id: "demo-team",
   auth_provider: "email",
@@ -131,3 +131,59 @@ export function isDemoUser(userId: string) { return userId === demoProfile.id; }
 
 export function demoSlackUser(id: string): SlackUser | undefined { return demoDirectory.users.find((user) => user.id === id); }
 export function demoSlackChannel(id: string): SlackChannel | undefined { return demoDirectory.channels.find((channel) => channel.id === id); }
+
+/** What the awards look at: the demo member's views, comments and replies. */
+export function getDemoMemberActivity() {
+  return {
+    viewedPrototypeIds: read<{ prototype_id: string; viewer_id: string }>(viewsKey).filter((view) => view.viewer_id === demoProfile.id).map((view) => view.prototype_id),
+    comments: read<CommentRecord>(commentsKey).filter((comment) => comment.author_id === demoProfile.id).length,
+    replies: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).length,
+  };
+}
+
+// Placeholder data so the awards have something to show in local demo mode:
+// a member who has built across three tools, browsed and commented on other
+// people's work, never replied and never tagged anything Committed, so some
+// awards are earned at different tiers and some are still locked. Written once
+// per browser (bump the version to reseed); never runs outside demo mode.
+const seedKey = "commentor:demo:seed:v1";
+
+export function seedDemoProfile() {
+  if (window.localStorage.getItem(seedKey)) return;
+  const day = (daysAgo: number) => new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+  const base = { description: null, owner_slack_id: null, slack_channel_id: null, slack_channel_name: null, embed_reason: "Placeholder data", favicon_url: null, archived_at: null, thumbnail_url: null, open_comment_count: 0 };
+  const proto = (id: string, name: string, url: string, owner: "demo-user" | "demo-owner", tags: string[], daysAgo: number, extra: Partial<PrototypeSummary> = {}): PrototypeSummary => ({
+    ...base, id, name, url, tags, owner_id: owner === "demo-user" ? demoProfile.id : "demo-owner", owner_name: owner === "demo-user" ? demoProfile.name : "Demo owner",
+    embed_mode: "new_tab", source: "manual", source_key: null, source_meta: null, created_by: owner === "demo-user" ? demoProfile.id : "demo-owner", created_at: day(daysAgo), updated_at: day(daysAgo), ...extra,
+  });
+
+  const prototypes: PrototypeSummary[] = [
+    proto("seed-mine-1", "Cross-sells setup", "https://example.pages.github.io/cross-sells-setup/", "demo-user", ["working"], 22, { source: "mantl", source_key: "proto/cross-sells-setup", source_meta: { name: "cross-sells-setup", based_on: null } }),
+    proto("seed-mine-2", "AI document processing", "https://example.pages.github.io/ai-document-processing/", "demo-user", ["review", "exploratory"], 40, { source: "mantl", source_key: "proto/ai-document-processing", source_meta: { name: "ai-document-processing", based_on: "Document intake" } }),
+    proto("seed-mine-3", "Onboarding flow", "https://claude.ai/public/artifacts/placeholder-onboarding", "demo-user", ["concept"], 120, {}),
+    proto("seed-mine-4", "Rate calculator", "https://rate-calculator.replit.app", "demo-user", ["tool"], 210, {}),
+    proto("seed-mine-5", "Pixel pong", "https://pixel-pong.replit.app", "demo-user", ["fun"], 300, {}),
+    proto("seed-other-1", "Member dashboard", "https://claude.ai/public/artifacts/placeholder-dashboard", "demo-owner", ["working"], 30),
+    proto("seed-other-2", "Loan application", "https://example.pages.github.io/loan-application/", "demo-owner", ["review"], 18, { source: "mantl", source_key: "proto/loan-application" }),
+    proto("seed-other-3", "Branch finder", "https://branch-finder.replit.app", "demo-owner", ["concept"], 9),
+    proto("seed-other-4", "Card controls", "https://claude.ai/public/artifacts/placeholder-card-controls", "demo-owner", ["exploratory"], 4),
+  ];
+
+  const commentOn = (prototypeId: string, index: number, daysAgo: number): CommentRecord => ({
+    id: `seed-comment-${prototypeId}-${index}`, prototype_id: prototypeId, author_id: demoProfile.id, body: ["Love the layout.", "Could the totals sit higher?", "This flow feels clear.", "What happens when it fails?"][index % 4],
+    page_url: null, status: "open", screen_label: null, viewport: null, x_pct: null, y_pct: null, selector: null, scroll_y: null, snapshot_url: null, slack_ts: null, resolved_by: null, resolved_at: null, resolution_note: null, created_at: day(daysAgo), replies: [], upvoters: [],
+  });
+  const comments = [
+    commentOn("seed-other-1", 0, 28), commentOn("seed-other-1", 1, 27), commentOn("seed-other-2", 2, 16), commentOn("seed-other-2", 3, 15), commentOn("seed-other-3", 0, 7),
+    commentOn("seed-mine-1", 1, 20), commentOn("seed-mine-3", 2, 100),
+  ];
+
+  const views = ["seed-other-1", "seed-other-2", "seed-other-3"].map((prototype_id) => ({ prototype_id, viewer_id: demoProfile.id }));
+
+  write(prototypesKey, prototypes);
+  write(commentsKey, comments);
+  write(repliesKey, []);
+  write(upvotesKey, []);
+  write(viewsKey, views);
+  window.localStorage.setItem(seedKey, "1");
+}

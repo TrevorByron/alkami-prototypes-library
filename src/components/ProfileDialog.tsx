@@ -2,12 +2,15 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { AwardsGrid } from "@/components/AwardsGrid";
 import { UserAvatar } from "@/components/UserIdentity";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemberActivity } from "@/hooks/useMemberActivity";
 import { usePrototypes } from "@/hooks/usePrototypes";
+import { computeMemberStats, evaluateAwards } from "@/lib/awards";
 import { displayName } from "@/lib/names";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -50,11 +53,14 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 function ProfileBody({ name }: { name: string }) {
   const { profile, user } = useAuth();
   const { prototypes, loading, error } = usePrototypes();
+  const { activity, loading: activityLoading } = useMemberActivity();
 
   const mine = useMemo(
     () => prototypes.filter((prototype) => prototype.owner_id === user?.id).sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [prototypes, user?.id],
   );
+
+  const statuses = useMemo(() => evaluateAwards(computeMemberStats(user?.id, prototypes, activity)), [prototypes, activity, user?.id]);
 
   return (
     <>
@@ -107,6 +113,8 @@ function ProfileBody({ name }: { name: string }) {
           </div>
         )}
       </section>
+
+      {loading || activityLoading ? <Skeleton className="h-32 w-full" /> : <AwardsGrid statuses={statuses} />}
     </>
   );
 }
