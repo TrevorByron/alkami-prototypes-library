@@ -8,10 +8,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { InfoBanner } from "@/components/ui/info-banner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectionPill } from "@/components/ui/selection-pill";
 import { Textarea } from "@/components/ui/textarea";
 import { isDemoMode } from "@/lib/demoMode";
 import { addDemoComment, updateDemoCommentBody, updateDemoPrototype } from "@/lib/demoStore";
 import { supabase } from "@/lib/supabase";
+import { prototypeSurfaces, type PrototypeSurfaceId } from "@/lib/surfaces";
 import type { CommentRecord, PrototypeSummary } from "@/lib/types";
 
 // Changes a prototype's name and description. The description is also the
@@ -22,6 +24,7 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
   const { user } = useAuth();
   const [name, setName] = useState(prototype.name);
   const [description, setDescription] = useState(prototype.description ?? "");
+  const [surface, setSurface] = useState<PrototypeSurfaceId | null>(prototype.surface ?? null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isBuilder = Boolean(user && (user.id === prototype.owner_id || user.id === prototype.created_by));
@@ -30,15 +33,17 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
     if (!open) return;
     setName(prototype.name);
     setDescription(prototype.description ?? "");
+    setSurface(prototype.surface ?? null);
     setFormError(null);
-  }, [open, prototype.name, prototype.description]);
+  }, [open, prototype.name, prototype.description, prototype.surface]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim()) { setFormError("Give the prototype a name."); return; }
     const nextDescription = description.trim() || null;
     setSaving(true); setFormError(null);
-    const fields = { name: name.trim(), description: nextDescription };
+    // The surface is only sent when it changed, so other edits keep working before the surface migration is applied.
+    const fields = { name: name.trim(), description: nextDescription, ...(surface !== (prototype.surface ?? null) ? { surface } : {}) };
     let commentWarning: string | null = null;
 
     if (isDemoMode) {
@@ -71,6 +76,7 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
         <form className="space-y-4" onSubmit={(event) => void save(event)}>
           <div className="space-y-2"><Label htmlFor="prototype-edit-name">Name</Label><Input id="prototype-edit-name" value={name} onChange={(event) => setName(event.target.value)} required /></div>
           <div className="space-y-2"><Label htmlFor="prototype-edit-description">Description <span className="font-normal text-abyss-5">(optional)</span></Label><Textarea id="prototype-edit-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} /></div>
+          <fieldset className="space-y-2"><legend className="text-sm font-medium leading-5 text-abyss-9">Surface <span className="font-normal text-abyss-5">(optional)</span></legend><div className="flex flex-wrap gap-2">{prototypeSurfaces.map((option) => <SelectionPill key={option.id} selected={surface === option.id} title={option.hint} onClick={() => setSurface((current) => current === option.id ? null : option.id)}>{option.label}</SelectionPill>)}</div></fieldset>
           {prototype.source === "mantl" ? <InfoBanner type="grayscale">Sharing this prototype again from Prototyping in MANTL replaces its name and description with the ones from the share.</InfoBanner> : null}
           {formError ? <InfoBanner type="danger">{formError}</InfoBanner> : null}
           <DialogFooter><Button type="button" variant="secondary" size="lg" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button><Button type="submit" size="lg" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : null}{saving ? "Saving…" : "Save details"}</Button></DialogFooter>

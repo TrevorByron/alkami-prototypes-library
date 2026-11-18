@@ -15,6 +15,8 @@ export type PrototypeSummary = {
   favicon_url: string | null;
   /** Category ids from src/lib/tags.ts. */
   tags: string[];
+  /** Console or Self-serve (src/lib/surfaces.ts); unset until the owner picks one. */
+  surface?: "console" | "self_serve" | null;
   /** "manual" when added in the app, "mantl" when registered by Prototyping in MANTL. */
   source: "manual" | "mantl";
   /** For mantl: the proto/<name> branch. */
