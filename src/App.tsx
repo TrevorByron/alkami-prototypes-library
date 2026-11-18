@@ -10,6 +10,7 @@ import { PlatformPreview } from "@/components/Platform";
 import { HowItWorks } from "@/components/HowItWorks";
 import { MantlPreview, NewTabLinks } from "@/components/NewTabLinks";
 import { PixelRunner } from "@/components/PixelRunner";
+import { ProfileDialog } from "@/components/ProfileDialog";
 import { TagButton } from "@/components/TagEditor";
 import { UserAvatar, UserIdentity } from "@/components/UserIdentity";
 import { VibeCodeDialog } from "@/components/VibeCodeDialog";
@@ -48,6 +49,7 @@ function App() {
 function TopBar() {
   const { profile, user, signOut } = useAuth();
   const me = profile?.name ?? user?.email ?? "Member";
+  const [profileOpen, setProfileOpen] = useState(false);
 
   return (
     <header className="flex h-16 items-center justify-between border-b-2 border-carbon-2 bg-abyss-0 px-6">
@@ -60,7 +62,10 @@ function TopBar() {
       <div className="flex items-center gap-2">
         <HowItWorks />
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => void signOut()}>Sign out</Button>
-        <UserAvatar id={user?.id} name={me} src={profile?.avatar_url} />
+        <button type="button" onClick={() => setProfileOpen(true)} className="rounded-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2" aria-label="Open your profile" aria-haspopup="dialog">
+          <UserAvatar id={user?.id} name={me} src={profile?.avatar_url} className="transition-transform hover:-translate-y-0.5" />
+        </button>
+        <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
       </div>
     </header>
   );
