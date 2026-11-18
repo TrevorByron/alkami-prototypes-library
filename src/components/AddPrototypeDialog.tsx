@@ -8,6 +8,7 @@ import { checkPrototypeUrl, normalizeUrl } from "@/lib/checkUrl";
 import { isDemoMode } from "@/lib/demoMode";
 import { addDemoComment, createDemoPrototype } from "@/lib/demoStore";
 import { supabase } from "@/lib/supabase";
+import { prototypeSurfaces, type PrototypeSurfaceId } from "@/lib/surfaces";
 import { prototypeTags, type PrototypeTagId } from "@/lib/tags";
 import type { EmbedCheck } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +34,10 @@ export function AddPrototypeDialog({ open, onOpenChange, onCreated }: Props) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [tags, setTags] = useState<PrototypeTagId[]>([]);
+  const [surface, setSurface] = useState<PrototypeSurfaceId | null>(null);
 
   const reset = () => {
-    setUrl(""); setName(""); setDescription(""); setTags([]); setCheck(null); setFormError(null); setSaving(false);
+    setUrl(""); setName(""); setDescription(""); setTags([]); setSurface(null); setCheck(null); setFormError(null); setSaving(false);
   };
 
   async function checkUrl() {
@@ -56,7 +58,7 @@ export function AddPrototypeDialog({ open, onOpenChange, onCreated }: Props) {
     if (!name.trim()) { setFormError("Add a name for this prototype."); return; }
     setSaving(true); setFormError(null);
     if (isDemoMode && user) {
-      const demoPrototype = createDemoPrototype({ name: name.trim(), url: normalizeUrl(url), description: description.trim() || null, owner_id: user.id, owner_slack_id: null, owner_name: profile?.name ?? user.email ?? "Alkami teammate", slack_channel_id: null, slack_channel_name: null, embed_mode: check.embeddable ? "live" : "new_tab", embed_reason: check.reason, favicon_url: check.favicon_url, tags });
+      const demoPrototype = createDemoPrototype({ name: name.trim(), url: normalizeUrl(url), description: description.trim() || null, owner_id: user.id, owner_slack_id: null, owner_name: profile?.name ?? user.email ?? "Alkami teammate", slack_channel_id: null, slack_channel_name: null, embed_mode: check.embeddable ? "live" : "new_tab", embed_reason: check.reason, favicon_url: check.favicon_url, tags, surface });
       if (demoPrototype.description) addDemoComment({ prototype_id: demoPrototype.id, body: demoPrototype.description, page_url: null, screen_label: null, viewport: null, x_pct: null, y_pct: null, selector: null, scroll_y: null, snapshot_url: null });
       onCreated(); reset(); onOpenChange(false); navigate(`/p/${demoPrototype.id}`);
       return;
@@ -67,6 +69,8 @@ export function AddPrototypeDialog({ open, onOpenChange, onCreated }: Props) {
       owner_id: user.id, owner_slack_id: null, owner_name: profile?.name ?? user.email ?? "Alkami teammate", slack_channel_id: null, slack_channel_name: null,
       embed_mode: check.embeddable ? "live" : "new_tab", embed_reason: check.reason, favicon_url: check.favicon_url,
       tags, created_by: user.id,
+      // Only sent when picked, so adding a prototype still works before the surface migration is applied.
+      ...(surface ? { surface } : {}),
     }).select("id").single();
     if (error || !data) { setFormError(error?.message ?? "We could not save this prototype."); setSaving(false); return; }
     // The description opens the comment thread as the builder's first comment.
@@ -85,6 +89,7 @@ export function AddPrototypeDialog({ open, onOpenChange, onCreated }: Props) {
       <form className="space-y-4" onSubmit={(event) => void savePrototype(event)}>
         <div className="space-y-2"><Label htmlFor="prototype-url">Prototype URL</Label><div className="flex gap-2"><Input id="prototype-url" value={url} onChange={(event) => setUrl(event.target.value)} onBlur={() => void checkUrl()} placeholder="https://your-prototype.example.com" type="url" required /><Button type="button" variant="secondary" size="lg" onClick={() => void checkUrl()} disabled={checking}>{checking ? <Loader2 className="animate-spin" /> : <Search />}{checking ? "Checking" : "Check"}</Button></div>{check ? <InfoBanner type={check.embeddable ? "success" : "warning"} title={check.requires_sign_in ? "Ready to try in the frame" : check.embeddable ? "Ready to embed" : "Will open in a new tab"} action={<Badge variant={check.embeddable ? "success" : "warning"}>{check.requires_sign_in ? "Sign-in detected" : check.embeddable ? "Live" : "New tab"}</Badge>}>{check.reason}</InfoBanner> : null}</div>
         <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="prototype-name">Name</Label><Input id="prototype-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Treasury dashboard" required /></div><div className="space-y-2"><Label>Built by</Label><div className="flex h-11 items-center rounded-lg border border-carbon-3 bg-carbon-0 px-3"><UserIdentity id={user?.id} name={profile?.name ?? user?.email ?? "Your Alkami account"} /></div></div></div>
+        <fieldset className="space-y-2"><legend className="text-sm font-medium leading-5 text-abyss-9">Surface <span className="font-normal text-abyss-5">(optional)</span></legend><div className="flex flex-wrap gap-2">{prototypeSurfaces.map((option) => <SelectionPill key={option.id} selected={surface === option.id} title={option.hint} onClick={() => setSurface((current) => current === option.id ? null : option.id)}>{option.label}</SelectionPill>)}</div></fieldset>
         <fieldset className="space-y-2"><legend className="text-sm font-medium leading-5 text-abyss-9">Tags <span className="font-normal text-abyss-5">(pick any that apply)</span></legend><div className="flex flex-wrap gap-2">{prototypeTags.map((tag) => { const selected = tags.includes(tag.id); return <SelectionPill key={tag.id} selected={selected} title={tag.hint} onClick={() => setTags((current) => selected ? current.filter((id) => id !== tag.id) : [...current, tag.id])}><span aria-hidden>{tag.emoji}</span>{tag.label}</SelectionPill>; })}</div></fieldset>
         <div className="space-y-2"><Label htmlFor="prototype-description">Description <span className="font-normal text-abyss-5">(optional)</span></Label><Textarea id="prototype-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What should reviewers pay attention to?" className="resize-none" /></div>
         <InfoBanner type="grayscale">Slack notifications are optional for now. You can connect this prototype to Slack later without changing who built it or who commented.</InfoBanner>

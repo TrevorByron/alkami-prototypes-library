@@ -12,7 +12,7 @@ const tierStyles: Record<Tier | "earned", { tile: string; chip: string }> = {
   earned: { tile: "bg-tiaga-0 text-tiaga-8 border-tiaga-3", chip: "bg-tiaga-0 text-tiaga-8" },
 };
 
-const groupOrder: AwardGroup[] = ["Getting started", "Builder", "Reviewer", "Community"];
+const groupOrder: AwardGroup[] = ["Getting started", "Builder", "Surfaces", "Reviewer", "Community"];
 
 export function AwardsGrid({ statuses }: { statuses: AwardStatus[] }) {
   const earned = statuses.filter((status) => status.tier).length;

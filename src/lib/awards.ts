@@ -1,4 +1,4 @@
-import { Eye, Flame, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
+import { Eye, Flame, Globe, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 
 import { detectPlatform } from "@/lib/platforms";
 import type { PrototypeSummary } from "@/lib/types";
@@ -11,7 +11,7 @@ export type Tier = "bronze" | "silver" | "gold";
 export const tierOrder: Tier[] = ["bronze", "silver", "gold"];
 export const tierLabels: Record<Tier, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold" };
 
-export type AwardGroup = "Getting started" | "Builder" | "Reviewer" | "Community";
+export type AwardGroup = "Getting started" | "Builder" | "Surfaces" | "Reviewer" | "Community";
 
 /** What we know about a member. Everything an award can look at lives here. */
 export type MemberStats = {
@@ -39,6 +39,8 @@ export type MemberStats = {
   mostDiscussed: number;
   /** Upvotes on this member's most-upvoted comment. */
   topUpvotes: number;
+  consolePrototypes: number;
+  selfServePrototypes: number;
 };
 
 type Metric = keyof MemberStats;
@@ -67,6 +69,9 @@ export const awardDefinitions: AwardDefinition[] = [
   { id: "remixer", name: "Remixer", group: "Builder", icon: GitFork, kind: "single", earned: (stats) => stats.remixes > 0, describe: "Start a prototype from someone else’s with “Build on this”" },
   { id: "tag-collector", name: "Tag Collector", group: "Builder", icon: Tags, kind: "tiered", metric: "tags", thresholds: [2, 4, 6], describe: (n) => `Use ${n} different category tags` },
   { id: "idea-to-handoff", name: "Idea to Handoff", group: "Builder", icon: Handshake, kind: "single", earned: (stats) => stats.committed > 0, describe: "Tag a prototype Committed" },
+  { id: "console-cadet", name: "Console Cadet", group: "Surfaces", icon: Monitor, kind: "tiered", metric: "consolePrototypes", thresholds: [1, 3, 10], describe: (n) => `Create ${plural(n, "Console prototype", "Console prototypes")}` },
+  { id: "self-serve-sprinter", name: "Self-Serve Sprinter", group: "Surfaces", icon: Smartphone, kind: "tiered", metric: "selfServePrototypes", thresholds: [1, 3, 10], describe: (n) => `Create ${plural(n, "Self-serve prototype", "Self-serve prototypes")}` },
+  { id: "both-worlds", name: "Both Worlds", group: "Surfaces", icon: Globe, kind: "single", earned: (stats) => stats.consolePrototypes > 0 && stats.selfServePrototypes > 0, describe: "Create a Console prototype and a Self-serve prototype" },
   { id: "fresh-eyes", name: "Fresh Eyes", group: "Reviewer", icon: ScanEye, kind: "tiered", metric: "firstComments", thresholds: [1, 3, 10], describe: (n) => `Be the first to comment on ${plural(n, "prototype", "prototypes")}` },
   { id: "critics-circle", name: "Critic’s Circle", group: "Reviewer", icon: MessagesSquare, kind: "tiered", metric: "othersCommented", thresholds: [2, 5, 10], describe: (n) => `Comment on ${n} different people’s prototypes` },
   { id: "thumbs-up", name: "Thumbs Up", group: "Reviewer", icon: ThumbsUp, kind: "tiered", metric: "upvotesGiven", thresholds: [1, 10, 50], describe: (n) => `Upvote ${plural(n, "comment", "comments")}` },
@@ -152,5 +157,7 @@ export function computeMemberStats(userId: string | undefined, prototypes: Proto
     mostViews: maxOf(mine.map((prototype) => prototype.view_count ?? 0)),
     mostDiscussed: maxOf(mine.map((prototype) => commentsOn(prototype.id).filter((comment) => comment.author_id !== userId).length)),
     topUpvotes: maxOf(myComments.map((comment) => upvotesOn(comment.id))),
+    consolePrototypes: mine.filter((prototype) => prototype.surface === "console").length,
+    selfServePrototypes: mine.filter((prototype) => prototype.surface === "self_serve").length,
   };
 }

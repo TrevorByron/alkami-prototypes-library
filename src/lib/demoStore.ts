@@ -1,3 +1,4 @@
+import type { PrototypeSurfaceId } from "@/lib/surfaces";
 import type { CommentAuthor, CommentRecord, PrototypeSummary, ReplyRecord, SlackChannel, SlackDirectory, SlackUser, Viewport } from "@/lib/types";
 
 const prototypesKey = "commentor:demo:prototypes";
@@ -61,7 +62,7 @@ export function getDemoPrototype(id: string) {
   return listDemoPrototypes().find((prototype) => prototype.id === id) ?? null;
 }
 
-export function createDemoPrototype(input: { name: string; url: string; description: string | null; owner_id: string; owner_slack_id: string | null; owner_name: string; slack_channel_id: string | null; slack_channel_name: string | null; embed_mode: "live" | "new_tab"; embed_reason: string; favicon_url: string | null; tags: string[]; }) {
+export function createDemoPrototype(input: { name: string; url: string; description: string | null; owner_id: string; owner_slack_id: string | null; owner_name: string; slack_channel_id: string | null; slack_channel_name: string | null; embed_mode: "live" | "new_tab"; embed_reason: string; favicon_url: string | null; tags: string[]; surface?: PrototypeSurfaceId | null; }) {
   const timestamp = now();
   const prototype: PrototypeSummary = { id: crypto.randomUUID(), ...input, source: "manual", source_key: null, source_meta: null, archived_at: null, thumbnail_url: null, created_by: demoProfile.id, created_at: timestamp, updated_at: timestamp, open_comment_count: 0 };
   write(prototypesKey, [...read<PrototypeSummary>(prototypesKey), prototype]);
@@ -147,7 +148,7 @@ export function getDemoMemberActivity() {
 // people's work, never replied and never tagged anything Committed, so some
 // awards are earned at different tiers and some are still locked. Written once
 // per browser (bump the version to reseed); never runs outside demo mode.
-const seedKey = "commentor:demo:seed:v3";
+const seedKey = "commentor:demo:seed:v4";
 
 export function seedDemoProfile() {
   if (window.localStorage.getItem(seedKey)) return;
@@ -159,10 +160,10 @@ export function seedDemoProfile() {
   });
 
   const prototypes: PrototypeSummary[] = [
-    proto("seed-mine-1", "Cross-sells setup", "https://example.pages.github.io/cross-sells-setup/", "demo-user", ["working"], 22, { source: "mantl", source_key: "proto/cross-sells-setup", source_meta: { name: "cross-sells-setup", based_on: null } }),
-    proto("seed-mine-2", "AI document processing", "https://example.pages.github.io/ai-document-processing/", "demo-user", ["review", "exploratory"], 40, { source: "mantl", source_key: "proto/ai-document-processing", source_meta: { name: "ai-document-processing", based_on: "Document intake" } }),
+    proto("seed-mine-1", "Cross-sells setup", "https://example.pages.github.io/cross-sells-setup/", "demo-user", ["working"], 22, { surface: "console", source: "mantl", source_key: "proto/cross-sells-setup", source_meta: { name: "cross-sells-setup", based_on: null } }),
+    proto("seed-mine-2", "AI document processing", "https://example.pages.github.io/ai-document-processing/", "demo-user", ["review", "exploratory"], 40, { surface: "console", source: "mantl", source_key: "proto/ai-document-processing", source_meta: { name: "ai-document-processing", based_on: "Document intake" } }),
     proto("seed-mine-3", "Onboarding flow", "https://claude.ai/public/artifacts/placeholder-onboarding", "demo-user", ["concept"], 120, {}),
-    proto("seed-mine-4", "Rate calculator", "https://rate-calculator.replit.app", "demo-user", ["tool"], 210, {}),
+    proto("seed-mine-4", "Rate calculator", "https://rate-calculator.replit.app", "demo-user", ["tool"], 210, { surface: "console" }),
     proto("seed-mine-5", "Pixel pong", "https://pixel-pong.replit.app", "demo-user", ["fun"], 300, {}),
     proto("seed-other-1", "Member dashboard", "https://claude.ai/public/artifacts/placeholder-dashboard", "demo-owner", ["working"], 30),
     proto("seed-other-2", "Loan application", "https://example.pages.github.io/loan-application/", "demo-owner", ["review"], 18, { source: "mantl", source_key: "proto/loan-application" }),
