@@ -28,6 +28,10 @@ type Payload = {
   /** The zip behind the gallery's "Build on this" (a copy of the branch), if the prototype is live. */
   downloadUrl: string | null;
   thumbnail: { base64: string; contentType: string } | null;
+  /** When this prototype was first shared, from its gallery metadata (a date). */
+  created: string | null;
+  /** When this prototype itself was last shared, from its gallery metadata. */
+  updated: string | null;
 };
 
 const BOT_EMAIL = (Deno.env.get("MANTL_BOT_EMAIL") ?? "prototyping-in-mantl@alkami.com").trim().toLowerCase();
@@ -95,7 +99,18 @@ function parse(body: unknown): Payload | string {
     basedOn: /^[a-z0-9][a-z0-9-]{0,59}$/.test(text(input.basedOn, 60)) ? text(input.basedOn, 60) : null,
     downloadUrl: httpsUrl(input.downloadUrl),
     thumbnail,
+    created: isoDate(input.created),
+    updated: isoDate(input.updated),
   };
+}
+
+// A date or date-time the gallery wrote (2026-11-03 or 2026-11-18T19:56:54.000Z),
+// normalised to ISO; anything else is dropped.
+function isoDate(value: unknown) {
+  const candidate = text(value, 40);
+  if (!/^\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(candidate)) return null;
+  const date = new Date(candidate);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function decodeBase64(value: string) {
@@ -185,6 +200,11 @@ Deno.serve(async (request) => {
         pages: payload.pages,
         based_on: payload.basedOn,
         download_url: payload.downloadUrl,
+        // The use_mantl_dates trigger turns these into created_at and
+        // updated_at: every publish re-registers every prototype, so the row's
+        // own times would otherwise all read as the latest publish.
+        created: payload.created,
+        updated: payload.updated,
         registered_at: new Date().toISOString(),
       },
       archived_at: payload.archived ? new Date().toISOString() : null,
