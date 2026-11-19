@@ -26,6 +26,8 @@ export type PrototypeSummary = {
   archived_at: string | null;
   /** For mantl: a public copy of the gallery thumbnail. */
   thumbnail_url: string | null;
+  /** A thumbnail a member uploaded; shown in preference to thumbnail_url and never replaced by a MANTL share. */
+  custom_thumbnail_url?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

@@ -8,6 +8,7 @@ import { recordView } from "@/lib/activity";
 import { startDownload } from "@/lib/downloadAsset";
 import type { PrototypeSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { thumbnailOf } from "@/lib/thumbnails";
 
 // A square keycap with one icon and a tooltip, the same treatment as the
 // Prototyping in MANTL gallery: a 2px border on a solid bottom edge, pressed
@@ -78,7 +79,7 @@ export function NewTabStage({ prototype }: { prototype: PrototypeSummary }) {
   return (
     <Card className="mt-6 w-full max-w-4xl overflow-hidden shadow-pixel">
       <a href={prototype.url} target="_blank" rel="noopener noreferrer" onClick={() => void recordView(prototype.id)} aria-label={`Open ${prototype.name} in a new tab`} className="block border-b-2 border-carbon-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2">
-        {prototype.thumbnail_url ? <img src={prototype.thumbnail_url} alt="" className="block w-full object-cover object-left-top" /> : <MantlPreview prototype={prototype} large />}
+        {thumbnailOf(prototype) ? <img src={thumbnailOf(prototype) ?? ""} alt="" className="block w-full object-cover object-left-top" /> : <MantlPreview prototype={prototype} large />}
       </a>
       <div className="flex flex-wrap items-center gap-4 p-6">
         <p className="min-w-0 flex-1 text-sm text-abyss-5">This prototype opens in its own tab. If GitHub asks, sign in there to view it. Leave feedback in the comments here.</p>
