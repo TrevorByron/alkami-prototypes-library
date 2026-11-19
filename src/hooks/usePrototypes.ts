@@ -40,6 +40,8 @@ export function usePrototype(id: string | undefined) {
   return { prototype, loading, error, refresh: load };
 }
 
+export const prototypesChangedEvent = "prototypes-changed";
+
 export function usePrototypes() {
   const { user } = useAuth();
   const [prototypes, setPrototypes] = useState<PrototypeSummary[]>([]);
@@ -101,6 +103,13 @@ export function usePrototypes() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // Edit details can be opened from the gallery or the profile; either announces a save so every open list reloads.
+  useEffect(() => {
+    const reload = () => void load();
+    window.addEventListener(prototypesChangedEvent, reload);
+    return () => window.removeEventListener(prototypesChangedEvent, reload);
   }, [load]);
 
   // Apply a saved change to one prototype without reloading the whole list.

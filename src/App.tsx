@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
-import { ArrowDownUp, Check, ChevronDown, ExternalLink, Eye, Hammer, LayoutGrid, MessageSquare, Plus, RotateCcw, Search, Users } from "lucide-react";
+import { ArrowDownUp, Check, ChevronDown, ExternalLink, Eye, Hammer, LayoutGrid, MessageSquare, Pencil, Plus, RotateCcw, Search, Users } from "lucide-react";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -31,6 +31,9 @@ import { recordEasterEgg, recordVisit } from "@/lib/tracking";
 import { detectPlatform, opensInNewTabOnly } from "@/lib/platforms";
 import { displayName } from "@/lib/names";
 import { prototypeTags, tagInfo } from "@/lib/tags";
+import { EditDetailsLauncher } from "@/components/EditDetailsDialog";
+import { thumbnailOf } from "@/lib/thumbnails";
+import { cn } from "@/lib/utils";
 import type { PrototypeSummary } from "@/lib/types";
 import { SignIn } from "@/pages/SignIn";
 import { ViewerPage } from "@/pages/ViewerPage";
@@ -244,6 +247,9 @@ function LibraryGroup({ title, count, description, mark, prototypes, onTagsChang
 
 function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: PrototypeSummary; related?: PrototypeSummary[]; onTagsChange: (tags: string[]) => void }) {
   const { user } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
+  // Owners (and the member who added it) can edit details straight from the gallery.
+  const owned = Boolean(user && (user.id === prototype.owner_id || user.id === prototype.created_by));
   const platform = detectPlatform(prototype.url, prototype.embed_mode);
   const viewerUrl = `/p/${prototype.id}`;
   const comments = prototype.comment_times?.length ?? prototype.open_comment_count;
@@ -266,7 +272,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
   const previewClass = "relative block h-44 overflow-hidden rounded-t-[6px] border-b-2 border-carbon-2 bg-carbon-1 focus-visible:outline-none";
   const preview = <>
     {isNew ? <span className="pixel-notch absolute left-3 top-3 z-10 bg-tiaga-6 px-2 py-0.5 font-pixel text-xs text-abyss-0">New</span> : null}
-    {prototype.thumbnail_url ? <img src={prototype.thumbnail_url} alt="" loading="lazy" className="h-full w-full object-cover object-left-top" /> : platform?.external ? <PlatformPreview platform={platform} /> : prototype.embed_mode === "live" && !newTabOnly ? <div className="pointer-events-none absolute left-0 top-0 h-[720px] w-[1280px] origin-top-left scale-[0.3] bg-abyss-0"><iframe title={`${prototype.name} preview`} src={prototype.url} loading="lazy" tabIndex={-1} className="h-full w-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" /></div> : newTabOnly ? <MantlPreview prototype={prototype} /> : <div className="flex h-full items-center justify-center text-xs text-abyss-5">Opens in a new tab</div>}
+    {thumbnailOf(prototype) ? <img src={thumbnailOf(prototype) ?? ""} alt="" loading="lazy" className={cn("h-full w-full object-cover", prototype.custom_thumbnail_url ? "object-center" : "object-left-top")} /> : platform?.external ? <PlatformPreview platform={platform} /> : prototype.embed_mode === "live" && !newTabOnly ? <div className="pointer-events-none absolute left-0 top-0 h-[720px] w-[1280px] origin-top-left scale-[0.3] bg-abyss-0"><iframe title={`${prototype.name} preview`} src={prototype.url} loading="lazy" tabIndex={-1} className="h-full w-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" /></div> : newTabOnly ? <MantlPreview prototype={prototype} /> : <div className="flex h-full items-center justify-center text-xs text-abyss-5">Opens in a new tab</div>}
   </>;
 
   return (
@@ -277,7 +283,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
       <div className="flex flex-1 flex-col gap-1.5 px-5 pb-4 pt-3">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <h3 className="truncate text-base leading-5 text-abyss-9">{newTabOnly ? <Link to={viewerUrl} className="hover:text-marine-5 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2">{prototype.name}</Link> : prototype.name}</h3>
-          {newTabOnly ? <div className="shrink-0 [&_button]:min-h-7 [&_button]:px-2 [&_svg]:!h-4 [&_svg]:!w-4"><TagButton prototypeId={prototype.id} tags={prototype.tags} onChange={onTagsChange} /></div> : null}
+          {owned || newTabOnly ? <div className="flex shrink-0 items-center gap-1 [&_button]:min-h-7 [&_button]:px-2 [&_svg]:!h-4 [&_svg]:!w-4">{owned ? <Button variant="ghost" size="sm" aria-label={`Edit details for ${prototype.name}`} title="Edit details" onClick={() => setEditOpen(true)}><Pencil /></Button> : null}{newTabOnly ? <TagButton prototypeId={prototype.id} tags={prototype.tags} onChange={onTagsChange} /> : null}</div> : null}
         </div>
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-abyss-5">
           <UserAvatar id={prototype.owner_id} name={prototype.owner_name} className="h-5 w-5 text-[10px]" />
@@ -295,6 +301,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
           </>}
         </div>
       </div>
+      <EditDetailsLauncher prototype={prototype} open={editOpen} onOpenChange={setEditOpen} />
     </Card>
   );
 }

@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { AwardsGrid } from "@/components/AwardsGrid";
+import { EditDetailsLauncher } from "@/components/EditDetailsDialog";
 import { UserAvatar } from "@/components/UserIdentity";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { useMemberActivity } from "@/hooks/useMemberActivity";
 import { usePrototypes } from "@/hooks/usePrototypes";
 import { computeMemberStats, evaluateAwards } from "@/lib/awards";
 import { displayName } from "@/lib/names";
+import type { PrototypeSummary } from "@/lib/types";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -54,6 +56,7 @@ function ProfileBody({ name }: { name: string }) {
   const { profile, user } = useAuth();
   const { prototypes, loading, error } = usePrototypes();
   const { activity, loading: activityLoading } = useMemberActivity();
+  const [editing, setEditing] = useState<PrototypeSummary | null>(null);
 
   const mine = useMemo(
     () => prototypes.filter((prototype) => prototype.owner_id === user?.id).sort((a, b) => b.created_at.localeCompare(a.created_at)),
@@ -95,7 +98,7 @@ function ProfileBody({ name }: { name: string }) {
                 <tr className="border-b-2 border-carbon-2">
                   <th scope="col" className="px-4 py-2 font-medium">Prototype</th>
                   <th scope="col" className="px-4 py-2 font-medium">Created</th>
-                  <th scope="col" className="w-24 px-4 py-2"><span className="sr-only">Open</span></th>
+                  <th scope="col" className="w-28 px-2 py-2"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -103,8 +106,11 @@ function ProfileBody({ name }: { name: string }) {
                   <tr key={prototype.id} className="border-b border-carbon-2 last:border-b-0">
                     <td className="max-w-0 truncate px-4 py-2 text-abyss-9">{prototype.name}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-abyss-7">{formatDate(prototype.created_at)}</td>
-                    <td className="px-4 py-1 text-right">
-                      <Button asChild variant="ghost" size="sm"><Link to={`/p/${prototype.id}`} aria-label={`Open ${prototype.name}`}>Open</Link></Button>
+                    <td className="px-2 py-1">
+                      <div className="flex items-center justify-end">
+                        <Button variant="ghost" size="sm" aria-label={`Edit details for ${prototype.name}`} onClick={() => setEditing(prototype)}>Edit</Button>
+                        <Button asChild variant="ghost" size="sm"><Link to={`/p/${prototype.id}`} aria-label={`Open ${prototype.name}`}>Open</Link></Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -115,6 +121,7 @@ function ProfileBody({ name }: { name: string }) {
       </section>
 
       {loading || activityLoading ? <Skeleton className="h-32 w-full" /> : <AwardsGrid statuses={statuses} />}
+      {editing ? <EditDetailsLauncher prototype={editing} open onOpenChange={(next) => { if (!next) setEditing(null); }} /> : null}
     </>
   );
 }
