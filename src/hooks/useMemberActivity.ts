@@ -34,7 +34,7 @@ export function useMemberActivity() {
       // and runner migrations; until then their reads error and read as empty.
       const [views, comments, replies, upvotes, visits, me, firstMembers, board] = await Promise.all([
         supabase.from("prototype_views").select("prototype_id").eq("viewer_id", user.id),
-        supabase.from("comments").select("id, prototype_id, author_id, created_at, status, resolved_by"),
+        supabase.from("comments").select("id, prototype_id, author_id, created_at, status, resolved_by, body"),
         supabase.from("replies").select("id", { count: "exact", head: true }).eq("author_id", user.id),
         supabase.from("comment_upvotes").select("comment_id, user_id"),
         supabase.from("member_visits").select("day").eq("user_id", user.id),

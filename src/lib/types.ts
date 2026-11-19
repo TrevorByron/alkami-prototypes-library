@@ -28,6 +28,8 @@ export type PrototypeSummary = {
   thumbnail_url: string | null;
   /** A thumbnail a member uploaded; shown in preference to thumbnail_url and never replaced by a MANTL share. */
   custom_thumbnail_url?: string | null;
+  /** How many times a custom thumbnail has been set (kept by a database trigger). */
+  thumbnail_changes?: number;
   created_by: string;
   created_at: string;
   updated_at: string;
