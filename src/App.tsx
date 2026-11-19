@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AddPrototypeDialog } from "@/components/AddPrototypeDialog";
 import { AppMark } from "@/components/AppMark";
 import { PlatformPreview } from "@/components/Platform";
+import { GithubLinkPrompt } from "@/components/GithubLinkPrompt";
 import { HowItWorks } from "@/components/HowItWorks";
 import { MantlPreview, NewTabLinks } from "@/components/NewTabLinks";
 import { PixelRunner } from "@/components/PixelRunner";
@@ -139,6 +140,7 @@ function Library() {
         {loading ? <SkeletonGrid /> : error ? <LibraryError message={error} onRetry={() => void refresh()} /> : visible.length ? <LibraryGroups prototypes={visible} onTagsChange={(id, tags) => patch(id, { tags })} /> : filtering ? <EmptySearch /> : <EmptyLibrary onAdd={() => setAddOpen(true)} />}
       </main>
       <AddPrototypeDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => void refresh()} />
+      {loading ? null : <GithubLinkPrompt prototypes={prototypes} onLinked={() => void refresh()} />}
       <PixelRunner />
     </div>
   );
@@ -279,7 +281,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
         </div>
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-abyss-5">
           <UserAvatar id={prototype.owner_id} name={prototype.owner_name} className="h-5 w-5 text-[10px]" />
-          <span className="truncate">{displayName(prototype.owner_name)}</span>
+          <span className="truncate" title={prototype.source === "mantl" && prototype.source_meta?.author ? `Shared from GitHub as ${prototype.source_meta.author}` : undefined}>{displayName(prototype.owner_name)}</span>
           <span aria-hidden>·</span>
           <span className="shrink-0">{formatRelativeTime(prototype.updated_at)}</span>
           {comments || newTabOnly ? <><span aria-hidden>·</span><Link to={viewerUrl} className="flex shrink-0 items-center gap-1 hover:text-marine-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2" aria-label={`${comments} comments${unread ? `, ${unread} new` : ""}`}><MessageSquare className="h-3.5 w-3.5" />{comments}{unread ? <span className="pixel-notch bg-marine-5 px-1 text-[10px] leading-4 text-abyss-0">{unread} new</span> : null}</Link></> : null}

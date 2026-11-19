@@ -50,6 +50,8 @@ Setup, once:
 3. Add the Edge Function secret `MANTL_REGISTER_SECRET` (any long random string) and make sure `APP_URL` is set.
 4. In the GitHub repository, add the secrets `ALKAMI_PROTOTYPES_REGISTER_URL` (`https://<ref>.supabase.co/functions/v1/register-prototype`) and `ALKAMI_PROTOTYPES_REGISTER_SECRET` (the same string).
 
+GitHub logins and Alkami sign-ins are linked by the members themselves. Shared prototypes only carry the GitHub login that pushed them (`source_meta.author`), so when a login looks like the signed-in member's name (Trevor Borden and `TrevorByron`), the library asks "Is this you?" once. Yes calls `link_github_login`, which hands that login's prototypes to the member, and the `apply_github_owner` trigger does the same for everything it shares later (their name on the card, under Mine, theirs to edit). No is remembered in `github_identities` and never asked again. The guess lives in `src/lib/githubMatch.ts`. Apply `20261119090000_github_identities.sql` to turn it on; until then the prompt never shows.
+
 Downloads from that repository (the template zip and each prototype's "Build on this" copy) go through the `download-asset` Edge Function, so any signed-in member can download them without a GitHub account: the repository is internal to the GitHub organisation, and its release links answer "Not Found" to anyone else. The function asks GitHub for a short-lived signed link with a read-only token and the browser downloads from GitHub directly.
 
 5. Deploy `download-asset` normally (JWT verification on): `npx supabase functions deploy download-asset --project-ref <ref>`.

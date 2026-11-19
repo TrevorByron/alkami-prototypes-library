@@ -6,6 +6,9 @@ const commentsKey = "commentor:demo:comments";
 const repliesKey = "commentor:demo:replies";
 const upvotesKey = "commentor:demo:upvotes";
 const viewsKey = "commentor:demo:views";
+const githubKey = "commentor:demo:github";
+
+export type GithubIdentity = { profile_id: string; login: string; linked: boolean };
 
 type DemoUpvote = { comment_id: string; user_id: string };
 
@@ -43,13 +46,23 @@ function now() { return new Date().toISOString(); }
 export function listDemoPrototypes() {
   const comments = read<CommentRecord>(commentsKey);
   const views = read<{ prototype_id: string; viewer_id: string }>(viewsKey);
+  const linked = new Set(read<GithubIdentity>(githubKey).filter((identity) => identity.linked).map((identity) => identity.login));
   return read<PrototypeSummary>(prototypesKey).map((prototype) => ({
     ...prototype,
+    // Same as the apply_github_owner trigger: a linked author's MANTL prototypes are theirs.
+    ...(prototype.source === "mantl" && linked.has((prototype.source_meta?.author ?? "").toLowerCase()) ? { owner_id: demoProfile.id, owner_name: demoProfile.name } : {}),
     tags: prototype.tags ?? [],
     open_comment_count: countOpenComments(prototype.id),
     comment_times: comments.filter((comment) => comment.prototype_id === prototype.id).map((comment) => comment.created_at),
     view_count: views.filter((view) => view.prototype_id === prototype.id).length,
   }));
+}
+
+export function listDemoGithubIdentities() { return read<GithubIdentity>(githubKey); }
+
+export function decideDemoGithubLogin(login: string, linked: boolean) {
+  const normalized = login.toLowerCase();
+  write(githubKey, [...read<GithubIdentity>(githubKey).filter((identity) => identity.login !== normalized), { profile_id: demoProfile.id, login: normalized, linked }]);
 }
 
 export function recordDemoView(prototypeId: string) {
