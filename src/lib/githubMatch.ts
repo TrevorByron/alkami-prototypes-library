@@ -7,6 +7,11 @@ import { displayName } from "@/lib/names";
 // "Trevor Borden" matches TrevorByron, trevor-borden, tborden, trevorb and
 // bordentrevor. A first name alone (trevor) or someone else's last initial
 // (TrevorSmith) does not.
+//
+// Many work accounts add the company: dbrugmantl, connermantl, taylor-mantl.
+// The company word is set aside first, so "David Bruggink" matches dbrugmantl
+// (initial and the start of the surname), and a first name with the company
+// (connermantl) is a weak match: a work account named after its owner.
 
 // "TrevorByron" → ["trevor", "byron"]; "t-borden_2" → ["t", "borden"].
 export function loginParts(login: string) {
@@ -27,6 +32,22 @@ function nameParts(name: string) {
     .filter(Boolean);
 }
 
+const companyWords = ["mantl", "alkami"];
+
+// The login without a company word before or after the name, and whether it had one.
+function withoutCompany(parts: string[]) {
+  let hadCompany = false;
+  const kept = parts.flatMap((part) => {
+    if (companyWords.includes(part)) { hadCompany = true; return []; }
+    for (const word of companyWords) {
+      if (part.length > word.length + 1 && part.endsWith(word)) { hadCompany = true; return [part.slice(0, -word.length)]; }
+      if (part.length > word.length + 1 && part.startsWith(word)) { hadCompany = true; return [part.slice(word.length)]; }
+    }
+    return [part];
+  });
+  return { parts: kept, hadCompany };
+}
+
 /** 0 when the login doesn't look like this person; higher is a closer match. */
 export function githubNameScore(login: string, name: string) {
   const person = nameParts(name);
@@ -34,7 +55,7 @@ export function githubNameScore(login: string, name: string) {
   const first = person[0];
   const last = person[person.length - 1];
   if (first.length < 2 || last.length < 2) return 0;
-  const parts = loginParts(login);
+  const { parts, hadCompany } = withoutCompany(loginParts(login));
   const compact = parts.join("");
   if (!compact) return 0;
 
@@ -48,6 +69,10 @@ export function githubNameScore(login: string, name: string) {
   if (parts.length === 1 && compact.startsWith(first) && compact.length > first.length && compact[first.length] === last[0]) return 2;
   // Initial plus surname written as one word: tborden2.
   if (last.length >= 4 && compact.startsWith(first[0]) && compact.includes(last)) return 2;
+  // Initial plus the start of the surname: dbrug for David Bruggink.
+  if (compact.length >= 4 && compact[0] === first[0] && last.startsWith(compact.slice(1))) return 2;
+  // A first name on its own only counts on a company account: connermantl.
+  if (hadCompany && compact === first) return 1;
   return 0;
 }
 
