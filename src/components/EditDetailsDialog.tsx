@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { ExternalLink, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -15,6 +15,7 @@ import { prototypesChangedEvent } from "@/hooks/usePrototypes";
 import { isDemoMode } from "@/lib/demoMode";
 import { findDescriptionComment } from "@/lib/descriptionComment";
 import { addDemoComment, updateDemoCommentBody, updateDemoPrototype } from "@/lib/demoStore";
+import { launchUrl, parseStartPath } from "@/lib/startPath";
 import { supabase } from "@/lib/supabase";
 import { prototypeSurfaces, type PrototypeSurfaceId } from "@/lib/surfaces";
 import { ThumbnailCropper } from "@/components/ThumbnailCropper";
@@ -33,6 +34,7 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
   // A picture picked and being framed but not saved yet, and whether to clear the custom one.
   const [pickedThumbnail, setPickedThumbnail] = useState<{ bitmap: ImageBitmap; framing: Framing } | null>(null);
   const [removeThumbnail, setRemoveThumbnail] = useState(false);
+  const [startPath, setStartPath] = useState(prototype.start_path ?? "");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isBuilder = Boolean(user && (user.id === prototype.owner_id || user.id === prototype.created_by));
@@ -44,8 +46,13 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
     setSurface(prototype.surface ?? null);
     setPickedThumbnail((current) => { current?.bitmap.close(); return null; });
     setRemoveThumbnail(false);
+    setStartPath(prototype.start_path ?? "");
     setFormError(null);
-  }, [open, prototype.name, prototype.description, prototype.surface]);
+  }, [open, prototype.name, prototype.description, prototype.surface, prototype.start_path]);
+
+  // What was typed, checked against the prototype's link, and where it would open.
+  const parsedStart = parseStartPath(startPath, prototype.url);
+  const startPreview = parsedStart.path !== undefined ? launchUrl({ url: prototype.url, start_path: parsedStart.path }) : null;
 
   // What the thumbnail will be after saving, for the preview.
   const hasCustomThumbnail = Boolean(prototype.custom_thumbnail_url) && !removeThumbnail || Boolean(pickedThumbnail);
@@ -66,12 +73,15 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim()) { setFormError("Give the prototype a name."); return; }
+    if (isBuilder && parsedStart.error) { setFormError(parsedStart.error); return; }
     const nextDescription = description.trim() || null;
     setSaving(true); setFormError(null);
     // The surface is only sent when it changed, so other edits keep working before the surface migration is applied.
     const fields: Partial<PrototypeSummary> = { name: name.trim(), description: nextDescription, ...(surface !== (prototype.surface ?? null) ? { surface } : {}) };
     let commentWarning: string | null = null;
     const previousThumbnail = prototype.custom_thumbnail_url ?? null;
+    // Like the thumbnail, only sent when it changed, so the owner-only rule isn't tripped by other edits.
+    if (isBuilder && parsedStart.path !== undefined && parsedStart.path !== (prototype.start_path ?? null)) fields.start_path = parsedStart.path;
 
     // The thumbnail column is only sent when it changed, like surface above.
     try {
@@ -118,6 +128,11 @@ export function EditDetailsDialog({ prototype, descriptionComment, open, onOpenC
           <div className="space-y-2"><Label htmlFor="prototype-edit-name">Name</Label><Input id="prototype-edit-name" value={name} onChange={(event) => setName(event.target.value)} required /></div>
           <div className="space-y-2"><Label htmlFor="prototype-edit-description">Description <span className="font-normal text-abyss-5">(optional)</span></Label><Textarea id="prototype-edit-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} /></div>
           <fieldset className="space-y-2"><legend className="text-sm font-medium leading-5 text-abyss-9">Surface <span className="font-normal text-abyss-5">(optional)</span></legend><div className="flex flex-wrap gap-2">{prototypeSurfaces.map((option) => <SelectionPill key={option.id} selected={surface === option.id} title={option.hint} onClick={() => setSurface((current) => current === option.id ? null : option.id)}>{option.label}</SelectionPill>)}</div></fieldset>
+          {isBuilder ? <div className="space-y-2">
+            <Label htmlFor="prototype-edit-start">Start page <span className="font-normal text-abyss-5">(optional)</span></Label>
+            <Input id="prototype-edit-start" value={startPath} onChange={(event) => setStartPath(event.target.value)} placeholder="Paste the page’s address, or a path like /accounts" autoComplete="off" spellCheck={false} aria-invalid={Boolean(parsedStart.error)} />
+            {parsedStart.error ? <p className="text-xs text-chaparral-8">{parsedStart.error}</p> : startPreview && parsedStart.path ? <p className="flex flex-wrap items-center gap-x-2 text-xs text-abyss-5"><span className="break-all">Opens {startPreview}</span><a href={startPreview} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-abyss-9 underline"><ExternalLink className="h-3 w-3" />Test it</a></p> : <p className="text-xs text-abyss-5">Where Open and Launch take people. Leave empty to open the prototype’s main link.</p>}
+          </div> : null}
           {isBuilder ? <div className="space-y-2">
             <Label>Thumbnail <span className="font-normal text-abyss-5">(optional)</span></Label>
             {pickedThumbnail ? <ThumbnailCropper bitmap={pickedThumbnail.bitmap} framing={pickedThumbnail.framing} onChange={(framing) => setPickedThumbnail((current) => current ? { ...current, framing } : current)} /> : null}

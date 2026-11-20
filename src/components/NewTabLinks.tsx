@@ -8,6 +8,7 @@ import { recordView } from "@/lib/activity";
 import { startDownload } from "@/lib/downloadAsset";
 import type { PrototypeSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { launchUrl } from "@/lib/startPath";
 import { thumbnailOf } from "@/lib/thumbnails";
 
 // A square keycap with one icon and a tooltip, the same treatment as the
@@ -50,7 +51,7 @@ export function NewTabLinks({ prototype }: { prototype: PrototypeSummary }) {
   };
   return (
     <>
-      <Button asChild><a href={prototype.url} target="_blank" rel="noopener noreferrer" onClick={() => void recordView(prototype.id)} aria-label={`Open ${prototype.name} in a new tab`}><ExternalLink />Open</a></Button>
+      <Button asChild><a href={launchUrl(prototype)} target="_blank" rel="noopener noreferrer" onClick={() => void recordView(prototype.id)} aria-label={`Open ${prototype.name} in a new tab`}><ExternalLink />Open</a></Button>
       {meta?.handoff_url ? <IconLink href={meta.handoff_url} label="Handoff" tip="Handoff notes: what was built and how, for engineers"><FileText /></IconLink> : null}
       {meta?.code_url ? <IconLink href={meta.code_url} label="Code" tip={`The code on GitHub${meta.branch ? ` (branch ${meta.branch})` : ""}`}><Code2 /></IconLink> : null}
       {download ? <IconLink href={download} onClick={buildOnThis} label="Build on this" tip="Build on this: downloads a copy of this prototype. Open it in Claude Code and say “share this” to publish your own version.">{pending ? <Loader2 className="animate-spin" /> : <GitFork />}</IconLink> : null}
@@ -78,7 +79,7 @@ export function MantlPreview({ prototype, large = false }: { prototype: Prototyp
 export function NewTabStage({ prototype }: { prototype: PrototypeSummary }) {
   return (
     <Card className="mt-6 w-full max-w-4xl overflow-hidden shadow-pixel">
-      <a href={prototype.url} target="_blank" rel="noopener noreferrer" onClick={() => void recordView(prototype.id)} aria-label={`Open ${prototype.name} in a new tab`} className="block border-b-2 border-carbon-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2">
+      <a href={launchUrl(prototype)} target="_blank" rel="noopener noreferrer" onClick={() => void recordView(prototype.id)} aria-label={`Open ${prototype.name} in a new tab`} className="block border-b-2 border-carbon-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2">
         {thumbnailOf(prototype) ? <img src={thumbnailOf(prototype) ?? ""} alt="" className="block w-full object-cover object-left-top" /> : <MantlPreview prototype={prototype} large />}
       </a>
       <div className="flex flex-wrap items-center gap-4 p-6">
