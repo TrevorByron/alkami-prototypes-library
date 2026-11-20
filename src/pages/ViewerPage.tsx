@@ -29,6 +29,7 @@ import { UserAvatar, UserIdentity } from "@/components/UserIdentity";
 import { findDescriptionComment } from "@/lib/descriptionComment";
 import { detectPlatform, opensInNewTabOnly } from "@/lib/platforms";
 import { displayName } from "@/lib/names";
+import { launchUrl } from "@/lib/startPath";
 import { tagInfo } from "@/lib/tags";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -82,10 +83,10 @@ export function ViewerPage() {
     return () => markPrototypeSeen(prototypeId);
   }, [prototypeId]);
 
+  const startUrl = prototype ? launchUrl(prototype) : null;
   useEffect(() => {
-    if (!prototype?.url) return;
-    setFrameSrc(prototype.url);
-  }, [prototypeId, prototype?.url]);
+    if (startUrl) setFrameSrc(startUrl);
+  }, [prototypeId, startUrl]);
 
   const showPrototype = () => {
     setSignInSkipped(prototypeId ?? null);

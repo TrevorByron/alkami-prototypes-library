@@ -32,6 +32,7 @@ import { detectPlatform, opensInNewTabOnly } from "@/lib/platforms";
 import { displayName } from "@/lib/names";
 import { prototypeTags, tagInfo } from "@/lib/tags";
 import { EditDetailsLauncher } from "@/components/EditDetailsDialog";
+import { launchUrl } from "@/lib/startPath";
 import { thumbnailOf } from "@/lib/thumbnails";
 import { cn } from "@/lib/utils";
 import type { PrototypeSummary } from "@/lib/types";
@@ -278,7 +279,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
   return (
     <Card className="pixel-lift group flex flex-col hover:border-marine-2 focus-within:border-marine-2">
       {newTabOnly
-        ? <a href={prototype.url} target="_blank" rel="noopener noreferrer" className={previewClass} aria-label={`Open ${prototype.name} in a new tab`}>{preview}</a>
+        ? <a href={launchUrl(prototype)} target="_blank" rel="noopener noreferrer" className={previewClass} aria-label={`Open ${prototype.name} in a new tab`}>{preview}</a>
         : <Link to={viewerUrl} className={previewClass} aria-label={`Open ${prototype.name}`}>{preview}</Link>}
       <div className="flex flex-1 flex-col gap-1.5 px-5 pb-4 pt-3">
         <div className="flex min-w-0 items-center justify-between gap-2">
@@ -297,7 +298,7 @@ function PrototypeCard({ prototype, related = [], onTagsChange }: { prototype: P
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-2 [&_svg]:!h-4 [&_svg]:!w-4">
           {newTabOnly ? <NewTabLinks prototype={prototype} /> : <>
             <Button asChild><Link to={viewerUrl}>Open</Link></Button>
-            <Button asChild variant="outline"><a href={prototype.url} target="_blank" rel="noopener noreferrer"><ExternalLink />New tab</a></Button>
+            <Button asChild variant="outline"><a href={launchUrl(prototype)} target="_blank" rel="noopener noreferrer"><ExternalLink />New tab</a></Button>
           </>}
         </div>
       </div>
