@@ -17,6 +17,14 @@ export type SystemUpdate = {
 
 export const systemUpdates: SystemUpdate[] = [
   {
+    id: "2026-11-23-narcissus",
+    date: "2026-11-23",
+    title: "A new secret award",
+    changes: [
+      { kind: "new", text: "The Lure of Narcissus: reply to one of your own comments." },
+    ],
+  },
+  {
     id: "2026-11-23-start-page",
     date: "2026-11-23",
     title: "Start page for each prototype",
