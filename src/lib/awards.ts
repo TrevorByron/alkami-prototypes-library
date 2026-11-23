@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, Eye, Flame, Gamepad2, Globe, Hourglass, Images, Moon, Package, ScrollText, Search, Smile, Sunrise, Trophy, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarDays, Eye, Flame, Flower2, Gamepad2, Globe, Hourglass, Images, Moon, Package, ScrollText, Search, Smile, Sunrise, Trophy, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 
 import { detectPlatform } from "@/lib/platforms";
 import type { PrototypeSummary } from "@/lib/types";
@@ -20,6 +20,8 @@ export type MemberStats = {
   othersViewed: number;
   comments: number;
   replies: number;
+  /** Replies this member posted under their own comments. */
+  selfReplies: number;
   /** Distinct prototyping tools (Claude, Replit, MANTL) used across their prototypes. */
   tools: number;
   /** Distinct category tags used across their prototypes. */
@@ -110,6 +112,7 @@ export const awardDefinitions: AwardDefinition[] = [
   { id: "night-owl", name: "Night Owl", group: "Habits", icon: Moon, kind: "tiered", metric: "lateComments", thresholds: [1, 5, 20], describe: (n) => `Post ${plural(n, "comment", "comments")} between 10pm and 4am` },
   { id: "critter-friend", name: "Critter Friend", group: "Secrets", icon: Gamepad2, kind: "single", earned: (stats) => stats.playedRunner, describe: "Play the pixel runner" },
   { id: "high-roller", name: "High Roller", group: "Secrets", icon: Trophy, kind: "single", earned: (stats) => stats.onLeaderboard, describe: "Reach the pixel runner’s top 5" },
+  { id: "lure-of-narcissus", name: "The Lure of Narcissus", group: "Secrets", icon: Flower2, kind: "single", earned: (stats) => stats.selfReplies > 0, describe: "Reply to one of your own comments" },
   { id: "detective", name: "Detective", group: "Secrets", icon: Search, kind: "single", earned: (stats) => stats.foundContributors, describe: "Find out who’s been here" },
 ];
 
@@ -154,6 +157,8 @@ export type MemberActivity = {
   viewedPrototypeIds: string[];
   /** Replies this member has posted. */
   replies: number;
+  /** The comment each of those replies was posted under. */
+  repliedCommentIds: string[];
   comments: CommentFact[];
   upvotes: UpvoteFact[];
   /** Local dates ("2026-11-12") the member opened the library. */
@@ -196,6 +201,7 @@ export function computeMemberStats(userId: string | undefined, prototypes: Proto
   const tags = new Set(mine.flatMap((prototype) => prototype.tags));
 
   const myComments = activity.comments.filter((comment) => comment.author_id === userId);
+  const myCommentIds = new Set(myComments.map((comment) => comment.id));
   const commentsOn = (prototypeId: string) => activity.comments.filter((comment) => comment.prototype_id === prototypeId);
   const earliest = (prototypeId: string) => [...commentsOn(prototypeId)].sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
 
@@ -206,6 +212,7 @@ export function computeMemberStats(userId: string | undefined, prototypes: Proto
     othersViewed: new Set(activity.viewedPrototypeIds.filter((id) => !ownedIds.has(id))).size,
     comments: myComments.length,
     replies: activity.replies,
+    selfReplies: activity.repliedCommentIds.filter((id) => myCommentIds.has(id)).length,
     tools: tools.size,
     tags: tags.size,
     remixes: mine.filter((prototype) => Boolean(prototype.source_meta?.based_on)).length,

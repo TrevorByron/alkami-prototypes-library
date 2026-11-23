@@ -151,6 +151,7 @@ export function getDemoMemberActivity() {
   return {
     viewedPrototypeIds: read<{ prototype_id: string; viewer_id: string }>(viewsKey).filter((view) => view.viewer_id === demoProfile.id).map((view) => view.prototype_id),
     replies: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).length,
+    repliedCommentIds: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).map((reply) => reply.comment_id),
     comments: read<CommentRecord>(commentsKey).map(({ id, prototype_id, author_id, created_at, status, resolved_by, body }) => ({ id, prototype_id, author_id, created_at, status, resolved_by, body })),
     upvotes: read<DemoUpvote>(upvotesKey),
     ...readDemoExtras(),
