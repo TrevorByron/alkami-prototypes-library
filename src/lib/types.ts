@@ -32,6 +32,8 @@ export type PrototypeSummary = {
   start_path?: string | null;
   /** How many times a custom thumbnail has been set (kept by a database trigger). */
   thumbnail_changes?: number;
+  /** Added to url when launching, so people land on the prototype (see startPath.ts). */
+  start_path?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
