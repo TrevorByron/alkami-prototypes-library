@@ -24,7 +24,7 @@ export function UpdatesSheet() {
       <SheetContent className="w-[min(100%,30rem)]">
         <div className="border-b border-carbon-3 px-6 pb-4 pt-6 pr-14">
           <SheetTitle>Updates</SheetTitle>
-          <SheetDescription className="mt-1">What’s new in the prototyping system, newest first.</SheetDescription>
+          <SheetDescription className="mt-1">What's new in the prototyping system</SheetDescription>
         </div>
         <ol className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
           {systemUpdates.map((update) => (
