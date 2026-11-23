@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, Eye, Flame, Gamepad2, Globe, Hourglass, Moon, Search, Sunrise, Trophy, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarDays, Eye, Flame, Gamepad2, Globe, Hourglass, Images, Moon, Package, ScrollText, Search, Smile, Sunrise, Trophy, Monitor, Smartphone, Footprints, GitFork, Handshake, Layers, MessageSquare, MessagesSquare, Reply, Rocket, ScanEye, SquareCheck, Star, Tags, ThumbsUp, Users, type LucideIcon } from "lucide-react";
 
 import { detectPlatform } from "@/lib/platforms";
 import type { PrototypeSummary } from "@/lib/types";
@@ -47,6 +47,14 @@ export type MemberStats = {
   weekStreak: number;
   /** Comments posted between 10pm and 4am, in the member's local time. */
   lateComments: number;
+  /** Comments longer than 600 characters. */
+  longComments: number;
+  /** Comments made of nothing but emoji. */
+  emojiComments: number;
+  /** Most category tags on one of this member's prototypes. */
+  mostTags: number;
+  /** Times this member has set a custom thumbnail, across their prototypes. */
+  thumbnailChanges: number;
   /** Whole years since they first signed in. */
   memberYears: number;
   earlyBird: boolean;
@@ -80,11 +88,15 @@ export const awardDefinitions: AwardDefinition[] = [
   { id: "multi-tool", name: "Multi-Tool", group: "Builder", icon: Layers, kind: "tiered", metric: "tools", thresholds: [2, 3], describe: (n) => `Build prototypes in ${n} different tools` },
   { id: "remixer", name: "Remixer", group: "Builder", icon: GitFork, kind: "single", earned: (stats) => stats.remixes > 0, describe: "Start a prototype from someone else’s with “Build on this”" },
   { id: "tag-collector", name: "Tag Collector", group: "Builder", icon: Tags, kind: "tiered", metric: "tags", thresholds: [2, 4, 6], describe: (n) => `Use ${n} different category tags` },
+  { id: "hoarder-of-tags", name: "Hoarder of Tags", group: "Builder", icon: Package, kind: "single", earned: (stats) => stats.mostTags >= 4, describe: "Put 4 category tags on one prototype" },
+  { id: "thumbnail-perfectionist", name: "Thumbnail Perfectionist", group: "Builder", icon: Images, kind: "single", earned: (stats) => stats.thumbnailChanges >= 2, describe: "Set a prototype thumbnail twice, because the first one wasn’t quite right" },
   { id: "idea-to-handoff", name: "Idea to Handoff", group: "Builder", icon: Handshake, kind: "single", earned: (stats) => stats.committed > 0, describe: "Tag a prototype Committed" },
   { id: "console-cadet", name: "Console Cadet", group: "Surfaces", icon: Monitor, kind: "tiered", metric: "consolePrototypes", thresholds: [1, 3, 10], describe: (n) => `Create ${plural(n, "Console prototype", "Console prototypes")}` },
   { id: "self-serve-sprinter", name: "Self-Serve Sprinter", group: "Surfaces", icon: Smartphone, kind: "tiered", metric: "selfServePrototypes", thresholds: [1, 3, 10], describe: (n) => `Create ${plural(n, "Self-serve prototype", "Self-serve prototypes")}` },
   { id: "both-worlds", name: "Both Worlds", group: "Surfaces", icon: Globe, kind: "single", earned: (stats) => stats.consolePrototypes > 0 && stats.selfServePrototypes > 0, describe: "Create a Console prototype and a Self-serve prototype" },
   { id: "fresh-eyes", name: "Fresh Eyes", group: "Reviewer", icon: ScanEye, kind: "tiered", metric: "firstComments", thresholds: [1, 3, 10], describe: (n) => `Be the first to comment on ${plural(n, "prototype", "prototypes")}` },
+  { id: "war-and-peace", name: "War and Peace", group: "Reviewer", icon: ScrollText, kind: "single", earned: (stats) => stats.longComments > 0, describe: "Leave a comment over 600 characters long" },
+  { id: "dont-mince-words", name: "Don’t Mince Words", group: "Reviewer", icon: Smile, kind: "single", earned: (stats) => stats.emojiComments > 0, describe: "Leave a comment that is nothing but emoji" },
   { id: "critics-circle", name: "Critic’s Circle", group: "Reviewer", icon: MessagesSquare, kind: "tiered", metric: "othersCommented", thresholds: [2, 5, 10], describe: (n) => `Comment on ${n} different people’s prototypes` },
   { id: "thumbs-up", name: "Thumbs Up", group: "Reviewer", icon: ThumbsUp, kind: "tiered", metric: "upvotesGiven", thresholds: [1, 10, 50], describe: (n) => `Upvote ${plural(n, "comment", "comments")}` },
   { id: "resolved", name: "Resolved!", group: "Reviewer", icon: SquareCheck, kind: "tiered", metric: "resolved", thresholds: [1, 5, 15], describe: (n) => `Resolve ${plural(n, "comment", "comments")} on your prototypes` },
@@ -133,7 +145,7 @@ export function evaluateAwards(stats: MemberStats) {
   return awardDefinitions.map((award) => evaluateAward(award, stats));
 }
 
-export type CommentFact = { id: string; prototype_id: string; author_id: string; created_at: string; status: "open" | "resolved"; resolved_by: string | null };
+export type CommentFact = { id: string; prototype_id: string; author_id: string; created_at: string; status: "open" | "resolved"; resolved_by: string | null; body: string };
 export type UpvoteFact = { comment_id: string; user_id: string };
 
 /** The raw activity that stats are derived from. Comments and upvotes cover every member, since some awards compare against others. */
@@ -169,6 +181,10 @@ function longestWeekStreak(days: string[]) {
   });
   return best;
 }
+
+const emojiOnly = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\s)+$/u;
+const hasEmoji = /\p{Extended_Pictographic}/u;
+const isEmojiOnly = (text: string) => emojiOnly.test(text) && hasEmoji.test(text);
 
 const isLateNight = (isoTime: string) => { const hour = new Date(isoTime).getHours(); return hour >= 22 || hour < 4; };
 
@@ -206,6 +222,10 @@ export function computeMemberStats(userId: string | undefined, prototypes: Proto
     visitDays: new Set(activity.visitDays).size,
     weekStreak: longestWeekStreak(activity.visitDays),
     lateComments: myComments.filter((comment) => isLateNight(comment.created_at)).length,
+    longComments: myComments.filter((comment) => (comment.body ?? "").trim().length > 600).length,
+    emojiComments: myComments.filter((comment) => isEmojiOnly(comment.body ?? "")).length,
+    mostTags: maxOf(mine.map((prototype) => prototype.tags.length)),
+    thumbnailChanges: mine.reduce((total, prototype) => total + (prototype.thumbnail_changes ?? 0), 0),
     memberYears: joinedAt && !Number.isNaN(Date.parse(joinedAt)) ? Math.max(0, Math.floor((now - Date.parse(joinedAt)) / (365.25 * DAY_MS))) : 0,
     earlyBird: activity.earlyBird,
     playedRunner: activity.runnerBest > 0,

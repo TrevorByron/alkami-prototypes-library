@@ -87,7 +87,7 @@ export function updateDemoPrototypeTags(id: string, tags: string[]) {
 }
 
 export function updateDemoPrototype(id: string, fields: Partial<PrototypeSummary>) {
-  write(prototypesKey, read<PrototypeSummary>(prototypesKey).map((prototype) => prototype.id === id ? { ...prototype, ...fields, updated_at: now() } : prototype));
+  write(prototypesKey, read<PrototypeSummary>(prototypesKey).map((prototype) => prototype.id === id ? { ...prototype, ...fields, thumbnail_changes: (prototype.thumbnail_changes ?? 0) + (fields.custom_thumbnail_url && fields.custom_thumbnail_url !== prototype.custom_thumbnail_url ? 1 : 0), updated_at: now() } : prototype));
 }
 
 export function deleteDemoPrototype(id: string) {
@@ -151,7 +151,7 @@ export function getDemoMemberActivity() {
   return {
     viewedPrototypeIds: read<{ prototype_id: string; viewer_id: string }>(viewsKey).filter((view) => view.viewer_id === demoProfile.id).map((view) => view.prototype_id),
     replies: read<ReplyRecord>(repliesKey).filter((reply) => reply.author_id === demoProfile.id).length,
-    comments: read<CommentRecord>(commentsKey).map(({ id, prototype_id, author_id, created_at, status, resolved_by }) => ({ id, prototype_id, author_id, created_at, status, resolved_by })),
+    comments: read<CommentRecord>(commentsKey).map(({ id, prototype_id, author_id, created_at, status, resolved_by, body }) => ({ id, prototype_id, author_id, created_at, status, resolved_by, body })),
     upvotes: read<DemoUpvote>(upvotesKey),
     ...readDemoExtras(),
   };
