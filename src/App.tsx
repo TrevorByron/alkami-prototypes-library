@@ -9,6 +9,7 @@ import { AppMark } from "@/components/AppMark";
 import { PlatformPreview } from "@/components/Platform";
 import { GithubLinkPrompt } from "@/components/GithubLinkPrompt";
 import { HowItWorks } from "@/components/HowItWorks";
+import { UpdatesSheet } from "@/components/UpdatesSheet";
 import { MantlPreview, NewTabLinks } from "@/components/NewTabLinks";
 import { PixelRunner } from "@/components/PixelRunner";
 import { ProfileDialog } from "@/components/ProfileDialog";
@@ -70,6 +71,7 @@ function TopBar() {
         </Link>
       </div>
       <div className="flex items-center gap-2">
+        <UpdatesSheet />
         <HowItWorks />
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => void signOut()}>Sign out</Button>
         <button type="button" onClick={() => setProfileOpen(true)} className="rounded-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-marine-2" aria-label="Open your profile" aria-haspopup="dialog">
